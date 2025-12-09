@@ -3,7 +3,6 @@ import pandas as pd
 import json
 from datetime import datetime
 from typing import List, Dict
-import google.generativeai as genai
 import os
 
 # 페이지 설정
@@ -364,43 +363,6 @@ def verify_user(role, username=None, password=None, company_name=None, name=None
                         if u['companyName'] == company_name and u['name'] == name and u['password'] == password), None)
         return customer is not None
 
-# Gemini AI 설정
-def setup_gemini():
-    api_key = os.getenv('GEMINI_API_KEY') or st.secrets.get('GEMINI_API_KEY', '')
-    if api_key:
-        genai.configure(api_key=api_key)
-        return True
-    return False
-
-# AI 분석 함수
-def analyze_risks(requests):
-    try:
-        if not setup_gemini():
-            return "API 키가 설정되지 않았습니다. 환경 변수 GEMINI_API_KEY를 설정해주세요."
-        
-        model = genai.GenerativeModel('gemini-2.0-flash-exp')
-        
-        # 문제가 있는 요청만 필터링
-        problem_requests = [r for r in requests if r.get('remarks') or r.get('status') == '지연']
-        
-        prompt = f"""
-        제조 생산 관리자 어시스턴트로서 다음 샘플 요청 원장 데이터를 검토하세요.
-        "remarks" 또는 "materialArrivalDate"에 명시된 문제(예: "부족", "누락", "지연")가 있는 행을 식별하세요.
-        
-        다음을 간결한 불릿 포인트로 요약하세요:
-        1. 중요한 위험 사항 (예: 터미널 부족)
-        2. 생산 팀을 위한 권장 조치 사항
-        
-        전문적이고 간결하게 작성하세요 (150단어 이하). 언어: 한국어.
-        
-        데이터:
-        {json.dumps(problem_requests, ensure_ascii=False, indent=2)}
-        """
-        
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        return f"AI 분석 중 오류가 발생했습니다: {str(e)}"
 
 # 로그인/등록 페이지
 def login_page():
@@ -531,7 +493,7 @@ def main_dashboard():
     # 사이드바
     with st.sidebar:
         st.header("메뉴")
-        view_option = st.radio("보기", ["원장", "새 요청 등록", "AI 분석"])
+        view_option = st.radio("보기", ["대시보드", "원장", "새 요청 등록"])
         
         if st.button("로그아웃", use_container_width=True):
             st.session_state.authenticated = False
@@ -553,20 +515,10 @@ def main_dashboard():
         # 검색
         search_term = st.text_input("🔍 검색", placeholder="업체명, 품번, 품명으로 검색...")
         
-        # 필터링
-        filtered_requests = st.session_state.requests
-        if search_term:
-            filtered_requests = [
-                r for r in filtered_requests
-                if search_term.lower() in str(r.get('companyName', '')).lower() or
-                   search_term.lower() in str(r.get('partNumber', '')).lower() or
-                   search_term.lower() in str(r.get('partName', '')).lower()
-            ]
-        
         # 데이터프레임 생성
-        if filtered_requests:
-            df = pd.DataFrame(filtered_requests)
-            
+        df = pd.DataFrame(st.session_state.requests)
+        
+        if not df.empty:
             # 표시할 컬럼 선택
             display_cols = [
                 'id', 'requestDate', 'companyName', 'department', 'contactPerson',
@@ -576,27 +528,110 @@ def main_dashboard():
             
             # 존재하는 컬럼만 선택
             available_cols = [col for col in display_cols if col in df.columns]
-            df_display = df[available_cols]
+            df_display = df[available_cols].copy()
             
-            st.dataframe(
-                df_display,
-                use_container_width=True,
-                hide_index=True,
-                height=400
-            )
+            # 검색 필터링
+            if search_term:
+                mask = (
+                    df_display['companyName'].astype(str).str.contains(search_term, case=False, na=False) |
+                    df_display['partNumber'].astype(str).str.contains(search_term, case=False, na=False) |
+                    df_display['partName'].astype(str).str.contains(search_term, case=False, na=False)
+                )
+                df_display = df_display[mask]
             
-            # 통계
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("전체", len(df))
-            with col2:
-                st.metric("진행 중", len(df[df['status'] == '진행 중']))
-            with col3:
-                st.metric("완료", len(df[df['status'] == '출하 완료']))
-            with col4:
-                st.metric("지연", len(df[df['status'] == '지연']))
+            # 열별 필터 추가
+            st.subheader("🔽 필터")
+            filter_cols = st.columns(4)
+            
+            filters = {}
+            
+            with filter_cols[0]:
+                if 'companyName' in df_display.columns:
+                    companies = ['전체'] + sorted(df_display['companyName'].dropna().unique().tolist())
+                    selected_company = st.selectbox("업체명", companies, key="filter_company")
+                    if selected_company != '전체':
+                        filters['companyName'] = selected_company
+                
+                if 'department' in df_display.columns:
+                    departments = ['전체'] + sorted(df_display['department'].dropna().unique().tolist())
+                    selected_dept = st.selectbox("부서", departments, key="filter_department")
+                    if selected_dept != '전체':
+                        filters['department'] = selected_dept
+            
+            with filter_cols[1]:
+                if 'status' in df_display.columns:
+                    statuses = ['전체'] + sorted(df_display['status'].dropna().unique().tolist())
+                    selected_status = st.selectbox("상태", statuses, key="filter_status")
+                    if selected_status != '전체':
+                        filters['status'] = selected_status
+                
+                if 'contactPerson' in df_display.columns:
+                    contacts = ['전체'] + sorted(df_display['contactPerson'].dropna().unique().tolist())
+                    selected_contact = st.selectbox("담당자", contacts, key="filter_contact")
+                    if selected_contact != '전체':
+                        filters['contactPerson'] = selected_contact
+            
+            with filter_cols[2]:
+                if 'carModel' in df_display.columns:
+                    car_models = ['전체'] + sorted(df_display['carModel'].dropna().unique().tolist())
+                    selected_car = st.selectbox("차종", car_models, key="filter_car")
+                    if selected_car != '전체':
+                        filters['carModel'] = selected_car
+                
+                if 'paymentStatus' in df_display.columns:
+                    payments = ['전체'] + sorted(df_display['paymentStatus'].dropna().unique().tolist())
+                    selected_payment = st.selectbox("회수여부", payments, key="filter_payment")
+                    if selected_payment != '전체':
+                        filters['paymentStatus'] = selected_payment
+            
+            with filter_cols[3]:
+                if 'partNumber' in df_display.columns:
+                    part_numbers = ['전체'] + sorted(df_display['partNumber'].dropna().unique().tolist())
+                    selected_part = st.selectbox("품번", part_numbers, key="filter_part")
+                    if selected_part != '전체':
+                        filters['partNumber'] = selected_part
+                
+                if st.button("필터 초기화", use_container_width=True, key="reset_filter"):
+                    filters = {}
+                    st.rerun()
+            
+            # 필터 적용
+            df_filtered = df_display.copy()
+            for col, value in filters.items():
+                if col in df_filtered.columns:
+                    df_filtered = df_filtered[df_filtered[col] == value]
+            
+            # 필터링된 데이터 표시
+            if not df_filtered.empty:
+                st.dataframe(
+                    df_filtered,
+                    use_container_width=True,
+                    hide_index=True,
+                    height=400
+                )
+                
+                # 통계
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("전체", len(df_display))
+                with col2:
+                    st.metric("필터링 결과", len(df_filtered))
+                with col3:
+                    if 'status' in df_filtered.columns:
+                        in_progress = len(df_filtered[df_filtered['status'] == '진행 중'])
+                        st.metric("진행 중", in_progress)
+                    else:
+                        st.metric("진행 중", 0)
+                with col4:
+                    if 'status' in df_filtered.columns:
+                        completed = len(df_filtered[df_filtered['status'] == '출하 완료'])
+                        st.metric("완료", completed)
+                    else:
+                        st.metric("완료", 0)
+            else:
+                st.info("필터 조건에 맞는 데이터가 없습니다.")
         else:
-            st.info("검색 결과가 없습니다.")
+            st.info("등록된 요청이 없습니다.")
     
     # 새 요청 등록
     elif view_option == "새 요청 등록":
@@ -646,18 +681,6 @@ def main_dashboard():
                 else:
                     st.error("필수 항목(*)을 모두 입력해주세요.")
     
-    # AI 분석
-    elif view_option == "AI 분석":
-        st.header("🤖 AI 리스크 분석")
-        
-        if st.button("분석 실행", type="primary"):
-            with st.spinner("AI가 데이터를 분석 중입니다..."):
-                analysis = analyze_risks(st.session_state.requests)
-                st.markdown("### 분석 결과")
-                st.markdown(analysis)
-        
-        st.markdown("---")
-        st.info("💡 AI 분석은 Gemini API를 사용합니다. 환경 변수 GEMINI_API_KEY를 설정해주세요.")
 
 # 메인 실행
 if not st.session_state.authenticated:
