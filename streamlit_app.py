@@ -173,6 +173,17 @@ st.markdown("""
             border-top: 1px solid #E2E8F0;
             margin: 20px 0;
         }
+        
+        /* 데이터프레임 헤더 중앙정렬 */
+        [data-testid="stDataFrame"] thead th {
+            text-align: center !important;
+        }
+        
+        /* 납기일 지연 셀 스타일링 (노란색 음영) */
+        .delayed-cell {
+            background-color: #FFEB3B !important;
+            font-weight: 600;
+        }
     </style>
  """, unsafe_allow_html=True)
 
@@ -907,6 +918,10 @@ def main_dashboard():
                 'status', 'sampleCompletionDate', 'shipDate', 'paymentStatus'
             ]
             
+            # 고객 로그인 시 대금회수 열 제외
+            if st.session_state.user_role == "CUSTOMER":
+                display_cols = [col for col in display_cols if col != 'paymentStatus']
+            
             # 존재하는 컬럼만 선택
             available_cols = [col for col in display_cols if col in df.columns]
             df_display = df[available_cols].copy()
@@ -1003,23 +1018,37 @@ def main_dashboard():
                         filters['carModel'] = selected_car
             
             with filter_cols[5]:
-                if 'paymentStatus' in df_display.columns:
+                # 고객 로그인 시 회수여부 필터 숨김
+                if st.session_state.user_role != "CUSTOMER" and 'paymentStatus' in df_display.columns:
                     payments = ['전체'] + sorted(df_display['paymentStatus'].dropna().unique().tolist())
                     selected_payment = st.selectbox("회수여부", payments, key="filter_payment", label_visibility="collapsed")
                     if selected_payment != '전체':
                         filters['paymentStatus'] = selected_payment
-            
-            with filter_cols[6]:
-                if 'partNumber' in df_display.columns:
+                elif 'partNumber' in df_display.columns:
+                    # 고객 로그인 시 품번 필터를 5번째 위치로 이동
                     part_numbers = ['전체'] + sorted(df_display['partNumber'].dropna().unique().tolist())
                     selected_part = st.selectbox("품번", part_numbers, key="filter_part", label_visibility="collapsed")
                     if selected_part != '전체':
                         filters['partNumber'] = selected_part
             
+            with filter_cols[6]:
+                if st.session_state.user_role != "CUSTOMER":
+                    if 'partNumber' in df_display.columns:
+                        part_numbers = ['전체'] + sorted(df_display['partNumber'].dropna().unique().tolist())
+                        selected_part = st.selectbox("품번", part_numbers, key="filter_part", label_visibility="collapsed")
+                        if selected_part != '전체':
+                            filters['partNumber'] = selected_part
+                else:
+                    # 고객 로그인 시 초기화 버튼을 6번째 위치로 이동
+                    if st.button("초기화", use_container_width=True, key="reset_filter"):
+                        filters = {}
+                        st.rerun()
+            
             with filter_cols[7]:
-                if st.button("초기화", use_container_width=True, key="reset_filter"):
-                    filters = {}
-                    st.rerun()
+                if st.session_state.user_role != "CUSTOMER":
+                    if st.button("초기화", use_container_width=True, key="reset_filter"):
+                        filters = {}
+                        st.rerun()
             
             # 필터 적용 (영어 컬럼명으로 필터링)
             df_filtered = df_display.copy()
@@ -1030,6 +1059,14 @@ def main_dashboard():
             # 필터링된 데이터를 한글 컬럼명으로 변환
             df_filtered_kr = df_filtered.copy()
             df_filtered_kr.columns = [column_mapping_display.get(col, col) for col in df_filtered_kr.columns]
+            
+            # 납기일 지연 체크 및 스타일링
+            if 'dueDate' in df_filtered.columns and 'shipDate' in df_filtered.columns:
+                # 납기일과 납품일을 날짜로 변환
+                df_filtered_kr['납기일_체크'] = pd.to_datetime(df_filtered['dueDate'], errors='coerce')
+                df_filtered_kr['납품일_체크'] = pd.to_datetime(df_filtered['shipDate'], errors='coerce')
+                # 지연 여부 확인 (납품일이 납기일보다 늦으면 True)
+                df_filtered_kr['지연여부'] = (df_filtered_kr['납품일_체크'] > df_filtered_kr['납기일_체크']) & df_filtered_kr['납품일_체크'].notna() & df_filtered_kr['납기일_체크'].notna()
             
             # 필터링된 데이터 표시
             if not df_filtered.empty:
@@ -1074,12 +1111,46 @@ def main_dashboard():
                         use_container_width=True
                     )
                 
-                st.dataframe(
-                    df_filtered_kr,
-                    use_container_width=True,
-                    hide_index=True,
-                    height=400
-                )
+                # 납품일 지연 체크 및 스타일링
+                if '지연여부' in df_filtered_kr.columns:
+                    # 체크용 컬럼 제거
+                    display_df = df_filtered_kr.drop(columns=['납기일_체크', '납품일_체크', '지연여부'], errors='ignore').copy()
+                    
+                    # 납품일 열 인덱스 찾기
+                    ship_date_col_idx = None
+                    if '납품일' in display_df.columns:
+                        ship_date_col_idx = list(display_df.columns).index('납품일')
+                        # 지연된 행에 마커 추가
+                        for idx in display_df.index:
+                            if df_filtered_kr.loc[idx, '지연여부']:
+                                original_val = str(display_df.loc[idx, '납품일'])
+                                display_df.loc[idx, '납품일'] = f'⚠️ {original_val}'
+                    
+                    st.dataframe(
+                        display_df,
+                        use_container_width=True,
+                        hide_index=True,
+                        height=400
+                    )
+                    
+                    # 지연된 납품일 셀에 노란색 배경 적용
+                    if ship_date_col_idx is not None:
+                        st.markdown(f"""
+                        <style>
+                            /* 납품일 지연 셀 스타일링 */
+                            [data-testid="stDataFrame"] tbody tr td:nth-child({ship_date_col_idx + 1}) {{
+                                background-color: #FFEB3B !important;
+                                font-weight: 600 !important;
+                            }}
+                        </style>
+                        """, unsafe_allow_html=True)
+                else:
+                    st.dataframe(
+                        df_filtered_kr,
+                        use_container_width=True,
+                        hide_index=True,
+                        height=400
+                    )
                 
                 # 통계
                 col1, col2, col3, col4 = st.columns(4)
