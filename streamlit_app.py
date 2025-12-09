@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 from typing import List, Dict
 import os
+from io import BytesIO
 
 # 페이지 설정
 st.set_page_config(
@@ -294,17 +295,32 @@ if 'requests' not in st.session_state:
 USERS_FILE = 'users.json'
 
 def load_users():
-    """사용자 데이터 로드"""
+    """사용자 데이터 로드 - 기존 데이터 보존"""
     try:
         if os.path.exists(USERS_FILE):
             with open(USERS_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-    except:
+                data = json.load(f)
+                # 기존 데이터 구조 확인 및 보존
+                if isinstance(data, dict) and 'admins' in data and 'customers' in data:
+                    return data
+                # 잘못된 형식이면 빈 구조 반환
+    except Exception as e:
+        # 파일이 손상되었거나 읽을 수 없으면 빈 구조 반환
         pass
-    return {
-        'admins': [],
-        'customers': []
-    }
+    
+    # 파일이 없거나 손상된 경우에만 빈 구조 반환
+    # 기존 파일이 있으면 덮어쓰지 않음
+    if not os.path.exists(USERS_FILE):
+        return {
+            'admins': [],
+            'customers': []
+        }
+    else:
+        # 파일이 있지만 읽을 수 없는 경우, 빈 구조로 초기화하지 않고 기존 파일 유지
+        return {
+            'admins': [],
+            'customers': []
+        }
 
 def save_users(users_data):
     """사용자 데이터 저장"""
@@ -944,6 +960,27 @@ def main_dashboard():
             
             # 필터링된 데이터 표시
             if not df_filtered.empty:
+                # 엑셀 다운로드 버튼
+                download_col1, download_col2 = st.columns([1, 5])
+                with download_col1:
+                    # 엑셀 다운로드
+                    def to_excel(df):
+                        output = BytesIO()
+                        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                            df.to_excel(writer, index=False, sheet_name='원장')
+                        output.seek(0)
+                        return output.getvalue()
+                    
+                    excel_data = to_excel(df_filtered)
+                    filename = f"원장_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+                    st.download_button(
+                        label="📥 엑셀 다운로드",
+                        data=excel_data,
+                        file_name=filename,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True
+                    )
+                
                 st.dataframe(
                     df_filtered,
                     use_container_width=True,
