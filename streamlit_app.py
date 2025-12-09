@@ -1185,23 +1185,23 @@ def main_dashboard():
         with tab1:
             with st.form("new_request_form"):
                 col1, col2 = st.columns(2)
-            with col1:
-                request_date = st.date_input("접수일", value=datetime.now().date())
-                company_name = st.text_input("업체명 *", value=st.session_state.get('user_company', ''))
-                department = st.text_input("부서")
-                contact_person = st.text_input("담당자 *")
-                car_model = st.text_input("차종")
-            
-            with col2:
-                part_number = st.text_input("품번 *")
-                part_name = st.text_input("품명 *")
-                quantity = st.number_input("주문수량 *", min_value=1, value=1)
-                due_date = st.date_input("납기")
-                requirements = st.text_area("요청사항")
-            
-            attachment = st.file_uploader("첨부파일", type=['pdf', 'xlsx', 'xls', 'jpg', 'png'])
-            
-            submitted = st.form_submit_button("등록", type="primary", use_container_width=True)
+                with col1:
+                    request_date = st.date_input("접수일", value=datetime.now().date())
+                    company_name = st.text_input("업체명 *", value=st.session_state.get('user_company', ''))
+                    department = st.text_input("부서")
+                    contact_person = st.text_input("담당자 *")
+                    car_model = st.text_input("차종")
+                
+                with col2:
+                    part_number = st.text_input("품번 *")
+                    part_name = st.text_input("품명 *")
+                    quantity = st.number_input("주문수량 *", min_value=1, value=1)
+                    due_date = st.date_input("납기")
+                    requirements = st.text_area("요청사항")
+                
+                attachment = st.file_uploader("첨부파일", type=['pdf', 'xlsx', 'xls', 'jpg', 'png'])
+                
+                submitted = st.form_submit_button("등록", type="primary", use_container_width=True)
             
             if submitted:
                 if company_name and contact_person and part_number and part_name:
