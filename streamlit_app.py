@@ -14,6 +14,168 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Custom CSS - 전문적이고 세련된 그레이/블루 계열
+st.markdown("""
+    <style>
+        /* 메인 배경 설정 */
+        .stApp {
+            background: linear-gradient(135deg, #F5F7FA 0%, #E8ECF1 100%);
+        }
+        
+        /* 헤더 스타일링 */
+        h1, h2, h3 {
+            color: #1A202C;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+        
+        h1 {
+            border-bottom: 3px solid #4A5568;
+            padding-bottom: 12px;
+            margin-bottom: 24px;
+            color: #2D3748;
+        }
+        
+        h2 {
+            color: #2D3748;
+            margin-top: 24px;
+            margin-bottom: 16px;
+        }
+        
+        /* 버튼 스타일링 - 블루 계열 */
+        .stButton > button {
+            background: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%);
+            color: white;
+            border-radius: 6px;
+            border: none;
+            padding: 0.625rem 1.5rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(74, 144, 226, 0.2);
+        }
+        
+        .stButton > button:hover {
+            background: linear-gradient(135deg, #357ABD 0%, #2E6DA4 100%);
+            box-shadow: 0 4px 8px rgba(74, 144, 226, 0.3);
+            transform: translateY(-1px);
+        }
+
+        /* 입력 필드 스타일링 - 그레이 계열 */
+        .stTextInput > div > div > input,
+        .stDateInput > div > div > input,
+        .stSelectbox > div > div > div,
+        .stTextArea > div > div > textarea {
+            border-radius: 6px;
+            border: 1.5px solid #CBD5E0;
+            background-color: #FFFFFF;
+            transition: all 0.2s ease;
+        }
+        
+        .stTextInput > div > div > input:focus,
+        .stDateInput > div > div > input:focus,
+        .stTextArea > div > div > textarea:focus {
+            border-color: #4A90E2;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+            outline: none;
+        }
+
+        /* 데이터프레임 스타일링 */
+        [data-testid="stDataFrame"] {
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: #FFFFFF;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        /* 사이드바 스타일링 - 그레이 계열 */
+        [data-testid="stSidebar"] {
+            background: linear-gradient(180deg, #F7FAFC 0%, #EDF2F7 100%);
+            border-right: 2px solid #E2E8F0;
+        }
+        
+        [data-testid="stSidebar"] .stRadio > div {
+            background-color: #FFFFFF;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #E2E8F0;
+        }
+
+        /* 메트릭 카드 스타일링 */
+        [data-testid="stMetricValue"] {
+            color: #2C5282;
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+        [data-testid="stMetricLabel"] {
+            color: #718096;
+            font-weight: 500;
+        }
+
+        /* 탭 스타일링 */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 8px;
+            background-color: #F7FAFC;
+            padding: 4px;
+            border-radius: 8px;
+        }
+        .stTabs [data-baseweb="tab"] {
+            height: 48px;
+            white-space: pre-wrap;
+            background-color: transparent;
+            border-radius: 6px;
+            color: #718096;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        .stTabs [data-baseweb="tab"]:hover {
+            background-color: #EDF2F7;
+            color: #4A5568;
+        }
+        .stTabs [aria-selected="true"] {
+            color: #2C5282;
+            background-color: #FFFFFF;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 성공/에러 메시지 스타일링 */
+        .stSuccess {
+            background-color: #F0F9FF;
+            border-left: 4px solid #4A90E2;
+            padding: 12px;
+            border-radius: 4px;
+        }
+        
+        .stError {
+            background-color: #FEF2F2;
+            border-left: 4px solid #E53E3E;
+            padding: 12px;
+            border-radius: 4px;
+        }
+        
+        .stInfo {
+            background-color: #EBF8FF;
+            border-left: 4px solid #3182CE;
+            padding: 12px;
+            border-radius: 4px;
+        }
+
+        /* 라디오 버튼 스타일링 */
+        .stRadio > label {
+            color: #4A5568;
+            font-weight: 500;
+        }
+
+        /* 구분선 스타일링 */
+        hr {
+            border: none;
+            border-top: 1px solid #E2E8F0;
+            margin: 20px 0;
+        }
+    </style>
+ """, unsafe_allow_html=True)
+
 # 세션 상태 초기화
 if 'requests' not in st.session_state:
     st.session_state.requests = [
@@ -135,6 +297,73 @@ if 'authenticated' not in st.session_state:
 if 'user_role' not in st.session_state:
     st.session_state.user_role = None
 
+# 사용자 데이터 로드 및 초기화
+USERS_FILE = 'users.json'
+
+def load_users():
+    """사용자 데이터 로드"""
+    try:
+        if os.path.exists(USERS_FILE):
+            with open(USERS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except:
+        pass
+    return {
+        'admins': [],
+        'customers': []
+    }
+
+def save_users(users_data):
+    """사용자 데이터 저장"""
+    try:
+        with open(USERS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(users_data, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        st.error(f"사용자 데이터 저장 실패: {str(e)}")
+        return False
+
+def register_user(role, username, password, company_name=None, name=None):
+    """사용자 등록"""
+    users = load_users()
+    
+    if role == 'ADMIN':
+        # 중복 확인
+        if any(u['username'] == username for u in users['admins']):
+            return False, "이미 등록된 관리자 아이디입니다."
+        users['admins'].append({
+            'username': username,
+            'password': password,
+            'registered_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        })
+    else:  # CUSTOMER
+        # 중복 확인 (업체명 + 이름)
+        if any(u['companyName'] == company_name and u['name'] == name for u in users['customers']):
+            return False, "이미 등록된 고객사입니다."
+        users['customers'].append({
+            'companyName': company_name,
+            'name': name,
+            'password': password,
+            'registered_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        })
+    
+    if save_users(users):
+        return True, "등록이 완료되었습니다!"
+    else:
+        return False, "등록 중 오류가 발생했습니다."
+
+def verify_user(role, username=None, password=None, company_name=None, name=None):
+    """사용자 인증"""
+    users = load_users()
+    
+    if role == 'ADMIN':
+        admin = next((u for u in users['admins'] if u['username'] == username and u['password'] == password), None)
+        return admin is not None
+    else:  # CUSTOMER
+        customer = next((u for u in users['customers'] 
+                        if u['companyName'] == company_name and u['name'] == name and u['password'] == password), None)
+        return customer is not None
+
 # Gemini AI 설정
 def setup_gemini():
     api_key = os.getenv('GEMINI_API_KEY') or st.secrets.get('GEMINI_API_KEY', '')
@@ -173,34 +402,126 @@ def analyze_risks(requests):
     except Exception as e:
         return f"AI 분석 중 오류가 발생했습니다: {str(e)}"
 
-# 로그인 페이지
+# 로그인/등록 페이지
 def login_page():
-    st.title("🔐 로그인")
+    st.title("🔐 로그인 / 회원가입")
     st.markdown("---")
     
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        role = st.radio("역할 선택", ["관리자", "고객사"], horizontal=True)
-        
-        if role == "고객사":
-            company_name = st.text_input("업체명")
-            name = st.text_input("이름")
-            if st.button("로그인", type="primary", use_container_width=True):
-                if company_name and name:
-                    st.session_state.authenticated = True
-                    st.session_state.user_role = "CUSTOMER"
-                    st.session_state.user_company = company_name
-                    st.session_state.user_name = name
-                    st.rerun()
-        else:
-            password = st.text_input("비밀번호", type="password")
-            if st.button("로그인", type="primary", use_container_width=True):
-                if password == "admin":  # 기본 비밀번호
-                    st.session_state.authenticated = True
-                    st.session_state.user_role = "ADMIN"
-                    st.rerun()
-                else:
-                    st.error("비밀번호가 올바르지 않습니다.")
+    # 탭 선택
+    tab1, tab2 = st.tabs(["로그인", "회원가입"])
+    
+    with tab1:
+        st.subheader("로그인")
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            role = st.radio("역할 선택", ["관리자", "고객사"], horizontal=True)
+            
+            if role == "고객사":
+                company_name = st.text_input("업체명 *")
+                name = st.text_input("이름 *")
+                password = st.text_input("비밀번호 *", type="password", help="처음 로그인하시면 자동으로 회원가입됩니다.")
+                if st.button("로그인", type="primary", use_container_width=True):
+                    if company_name and name and password:
+                        # 먼저 기존 사용자 확인
+                        if verify_user('CUSTOMER', company_name=company_name, name=name, password=password):
+                            st.session_state.authenticated = True
+                            st.session_state.user_role = "CUSTOMER"
+                            st.session_state.user_company = company_name
+                            st.session_state.user_name = name
+                            st.success("로그인 성공!")
+                            st.rerun()
+                        else:
+                            # 등록되지 않은 사용자면 자동 등록
+                            users = load_users()
+                            # 중복 확인 (업체명 + 이름)
+                            existing = next((u for u in users['customers'] 
+                                           if u['companyName'] == company_name and u['name'] == name), None)
+                            
+                            if existing:
+                                # 같은 업체명+이름이 있지만 비밀번호가 다른 경우
+                                st.error("비밀번호가 올바르지 않습니다.")
+                            else:
+                                # 신규 사용자 자동 등록
+                                if len(password) < 4:
+                                    st.error("비밀번호는 4자 이상이어야 합니다.")
+                                else:
+                                    success, message = register_user('CUSTOMER', None, password, company_name, name)
+                                    if success:
+                                        st.session_state.authenticated = True
+                                        st.session_state.user_role = "CUSTOMER"
+                                        st.session_state.user_company = company_name
+                                        st.session_state.user_name = name
+                                        st.success(f"회원가입 및 로그인 완료! {message}")
+                                        st.rerun()
+                                    else:
+                                        st.error(message)
+                    else:
+                        st.error("모든 필드를 입력해주세요.")
+            else:  # 관리자
+                username = st.text_input("아이디 *")
+                password = st.text_input("비밀번호 *", type="password")
+                if st.button("로그인", type="primary", use_container_width=True):
+                    if username and password:
+                        if verify_user('ADMIN', username=username, password=password):
+                            st.session_state.authenticated = True
+                            st.session_state.user_role = "ADMIN"
+                            st.session_state.username = username
+                            st.success("로그인 성공!")
+                            st.rerun()
+                        else:
+                            st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
+                    else:
+                        st.error("아이디와 비밀번호를 입력해주세요.")
+    
+    with tab2:
+        st.subheader("회원가입")
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            reg_role = st.radio("역할 선택", ["관리자", "고객사"], horizontal=True, key="reg_role")
+            
+            if reg_role == "고객사":
+                reg_company_name = st.text_input("업체명 *", key="reg_company")
+                reg_name = st.text_input("이름 *", key="reg_name")
+                reg_password = st.text_input("비밀번호 *", type="password", key="reg_customer_pw")
+                reg_password_confirm = st.text_input("비밀번호 확인 *", type="password", key="reg_customer_pw_confirm")
+                
+                if st.button("회원가입", type="primary", use_container_width=True, key="reg_customer_btn"):
+                    if reg_company_name and reg_name and reg_password:
+                        if reg_password != reg_password_confirm:
+                            st.error("비밀번호가 일치하지 않습니다.")
+                        elif len(reg_password) < 4:
+                            st.error("비밀번호는 4자 이상이어야 합니다.")
+                        else:
+                            success, message = register_user('CUSTOMER', None, reg_password, reg_company_name, reg_name)
+                            if success:
+                                st.success(message)
+                                st.info("회원가입이 완료되었습니다. 로그인 탭에서 로그인해주세요.")
+                            else:
+                                st.error(message)
+                    else:
+                        st.error("모든 필드를 입력해주세요.")
+            else:  # 관리자
+                reg_username = st.text_input("아이디 *", key="reg_username")
+                reg_password = st.text_input("비밀번호 *", type="password", key="reg_admin_pw")
+                reg_password_confirm = st.text_input("비밀번호 확인 *", type="password", key="reg_admin_pw_confirm")
+                
+                if st.button("회원가입", type="primary", use_container_width=True, key="reg_admin_btn"):
+                    if reg_username and reg_password:
+                        if reg_password != reg_password_confirm:
+                            st.error("비밀번호가 일치하지 않습니다.")
+                        elif len(reg_password) < 4:
+                            st.error("비밀번호는 4자 이상이어야 합니다.")
+                        elif len(reg_username) < 3:
+                            st.error("아이디는 3자 이상이어야 합니다.")
+                        else:
+                            success, message = register_user('ADMIN', reg_username, reg_password)
+                            if success:
+                                st.success(message)
+                                st.info("회원가입이 완료되었습니다. 로그인 탭에서 로그인해주세요.")
+                            else:
+                                st.error(message)
+                    else:
+                        st.error("아이디와 비밀번호를 입력해주세요.")
 
 # 메인 대시보드
 def main_dashboard():
@@ -221,6 +542,9 @@ def main_dashboard():
         st.caption(f"역할: {st.session_state.user_role}")
         if st.session_state.user_role == "CUSTOMER":
             st.caption(f"업체: {st.session_state.get('user_company', '')}")
+            st.caption(f"이름: {st.session_state.get('user_name', '')}")
+        elif st.session_state.user_role == "ADMIN":
+            st.caption(f"아이디: {st.session_state.get('username', '')}")
     
     # 원장 보기
     if view_option == "원장":
