@@ -508,8 +508,226 @@ def main_dashboard():
         elif st.session_state.user_role == "ADMIN":
             st.caption(f"아이디: {st.session_state.get('username', '')}")
     
+    # 대시보드
+    if view_option == "대시보드":
+        st.header("📊 대시보드 - 전체 현황")
+        
+        # 데이터프레임 생성
+        df = pd.DataFrame(st.session_state.requests)
+        
+        if not df.empty:
+            # 주요 지표 카드 (상단)
+            st.subheader("📈 주요 지표")
+            metric_col1, metric_col2, metric_col3, metric_col4, metric_col5 = st.columns(5)
+            
+            with metric_col1:
+                total = len(df)
+                st.metric("전체 요청", f"{total}건", delta=None)
+            
+            with metric_col2:
+                if 'status' in df.columns:
+                    in_progress = len(df[df['status'] == '진행 중'])
+                    st.metric("진행 중", f"{in_progress}건", delta=None)
+                else:
+                    st.metric("진행 중", "0건")
+            
+            with metric_col3:
+                if 'status' in df.columns:
+                    completed = len(df[df['status'] == '출하 완료'])
+                    st.metric("완료", f"{completed}건", delta=None)
+                else:
+                    st.metric("완료", "0건")
+            
+            with metric_col4:
+                if 'status' in df.columns:
+                    delayed = len(df[df['status'] == '지연'])
+                    st.metric("지연", f"{delayed}건", delta=None)
+                else:
+                    st.metric("지연", "0건")
+            
+            with metric_col5:
+                if 'quantity' in df.columns:
+                    total_qty = df['quantity'].sum()
+                    st.metric("총 수량", f"{total_qty:,}EA", delta=None)
+                else:
+                    st.metric("총 수량", "0EA")
+            
+            st.markdown("---")
+            
+            # 상태별 요약
+            st.subheader("📋 상태별 요약")
+            if 'status' in df.columns:
+                status_summary = df['status'].value_counts().reset_index()
+                status_summary.columns = ['상태', '건수']
+                status_summary['비율'] = (status_summary['건수'] / len(df) * 100).round(1).astype(str) + '%'
+                
+                summary_col1, summary_col2 = st.columns([1, 2])
+                
+                with summary_col1:
+                    st.dataframe(
+                        status_summary,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                
+                with summary_col2:
+                    st.bar_chart(df['status'].value_counts())
+            else:
+                st.info("상태 데이터가 없습니다.")
+            
+            st.markdown("---")
+            
+            # 업체별 집계
+            st.subheader("🏢 업체별 집계")
+            if 'companyName' in df.columns:
+                company_summary = df.groupby('companyName').agg({
+                    'id': 'count',
+                    'quantity': 'sum' if 'quantity' in df.columns else 'count'
+                }).reset_index()
+                company_summary.columns = ['업체명', '요청건수', '총수량']
+                company_summary = company_summary.sort_values('요청건수', ascending=False)
+                
+                company_col1, company_col2 = st.columns([1, 2])
+                
+                with company_col1:
+                    st.dataframe(
+                        company_summary,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                
+                with company_col2:
+                    st.bar_chart(df['companyName'].value_counts().head(10))
+            else:
+                st.info("업체 데이터가 없습니다.")
+            
+            st.markdown("---")
+            
+            # 담당자별 집계
+            st.subheader("👥 담당자별 집계")
+            if 'contactPerson' in df.columns:
+                contact_summary = df.groupby('contactPerson').agg({
+                    'id': 'count',
+                    'quantity': 'sum' if 'quantity' in df.columns else 'count'
+                }).reset_index()
+                contact_summary.columns = ['담당자', '요청건수', '총수량']
+                contact_summary = contact_summary.sort_values('요청건수', ascending=False)
+                
+                contact_col1, contact_col2 = st.columns([1, 2])
+                
+                with contact_col1:
+                    st.dataframe(
+                        contact_summary,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                
+                with contact_col2:
+                    st.bar_chart(df['contactPerson'].value_counts().head(10))
+            else:
+                st.info("담당자 데이터가 없습니다.")
+            
+            st.markdown("---")
+            
+            # 부서별 집계
+            st.subheader("🏛️ 부서별 집계")
+            if 'department' in df.columns:
+                dept_summary = df.groupby('department').agg({
+                    'id': 'count',
+                    'quantity': 'sum' if 'quantity' in df.columns else 'count'
+                }).reset_index()
+                dept_summary.columns = ['부서', '요청건수', '총수량']
+                dept_summary = dept_summary.sort_values('요청건수', ascending=False)
+                
+                dept_col1, dept_col2 = st.columns([1, 2])
+                
+                with dept_col1:
+                    st.dataframe(
+                        dept_summary,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                
+                with dept_col2:
+                    st.bar_chart(df['department'].value_counts())
+            else:
+                st.info("부서 데이터가 없습니다.")
+            
+            st.markdown("---")
+            
+            # 회수 현황 집계
+            st.subheader("💰 회수 현황 집계")
+            if 'paymentStatus' in df.columns:
+                payment_summary = df['paymentStatus'].value_counts().reset_index()
+                payment_summary.columns = ['회수여부', '건수']
+                payment_summary['비율'] = (payment_summary['건수'] / len(df) * 100).round(1).astype(str) + '%'
+                
+                payment_col1, payment_col2 = st.columns([1, 2])
+                
+                with payment_col1:
+                    st.dataframe(
+                        payment_summary,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                
+                with payment_col2:
+                    st.bar_chart(df['paymentStatus'].value_counts())
+            else:
+                st.info("회수 데이터가 없습니다.")
+            
+            st.markdown("---")
+            
+            # 최근 요청 현황 (최근 5건)
+            st.subheader("🕐 최근 요청 현황 (최근 5건)")
+            if 'requestDate' in df.columns:
+                df_sorted = df.copy()
+                df_sorted['requestDate'] = pd.to_datetime(df_sorted['requestDate'], errors='coerce')
+                df_recent = df_sorted.sort_values('requestDate', ascending=False).head(5)
+                
+                recent_cols = ['id', 'requestDate', 'companyName', 'partNumber', 'partName', 'status', 'quantity']
+                recent_cols = [col for col in recent_cols if col in df_recent.columns]
+                
+                st.dataframe(
+                    df_recent[recent_cols],
+                    use_container_width=True,
+                    hide_index=True,
+                    height=200
+                )
+            else:
+                st.info("날짜 데이터가 없습니다.")
+            
+            st.markdown("---")
+            
+            # 차종별 집계
+            st.subheader("🚗 차종별 집계")
+            if 'carModel' in df.columns:
+                car_summary = df.groupby('carModel').agg({
+                    'id': 'count',
+                    'quantity': 'sum' if 'quantity' in df.columns else 'count'
+                }).reset_index()
+                car_summary.columns = ['차종', '요청건수', '총수량']
+                car_summary = car_summary.sort_values('요청건수', ascending=False)
+                
+                car_col1, car_col2 = st.columns([1, 2])
+                
+                with car_col1:
+                    st.dataframe(
+                        car_summary,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                
+                with car_col2:
+                    st.bar_chart(df['carModel'].value_counts().head(10))
+            else:
+                st.info("차종 데이터가 없습니다.")
+                
+        else:
+            st.info("등록된 요청이 없습니다.")
+    
     # 원장 보기
-    if view_option == "원장":
+    elif view_option == "원장":
         st.header("📋 샘플 요청 원장")
         
         # 검색
@@ -539,59 +757,82 @@ def main_dashboard():
                 )
                 df_display = df_display[mask]
             
-            # 열별 필터 추가
+            # 열별 필터 추가 - 한 줄에 모두 표시
             st.subheader("🔽 필터")
-            filter_cols = st.columns(4)
             
+            # 필터 레이블 표시 (위에)
+            label_cols = st.columns(8)
+            with label_cols[0]:
+                st.caption("**업체명**")
+            with label_cols[1]:
+                st.caption("**부서**")
+            with label_cols[2]:
+                st.caption("**상태**")
+            with label_cols[3]:
+                st.caption("**담당자**")
+            with label_cols[4]:
+                st.caption("**차종**")
+            with label_cols[5]:
+                st.caption("**회수여부**")
+            with label_cols[6]:
+                st.caption("**품번**")
+            with label_cols[7]:
+                st.caption("**초기화**")
+            
+            filter_cols = st.columns(8)
             filters = {}
             
             with filter_cols[0]:
                 if 'companyName' in df_display.columns:
                     companies = ['전체'] + sorted(df_display['companyName'].dropna().unique().tolist())
-                    selected_company = st.selectbox("업체명", companies, key="filter_company")
+                    selected_company = st.selectbox("업체명", companies, key="filter_company", label_visibility="collapsed")
                     if selected_company != '전체':
                         filters['companyName'] = selected_company
-                
+            
+            with filter_cols[1]:
                 if 'department' in df_display.columns:
                     departments = ['전체'] + sorted(df_display['department'].dropna().unique().tolist())
-                    selected_dept = st.selectbox("부서", departments, key="filter_department")
+                    selected_dept = st.selectbox("부서", departments, key="filter_department", label_visibility="collapsed")
                     if selected_dept != '전체':
                         filters['department'] = selected_dept
             
-            with filter_cols[1]:
+            with filter_cols[2]:
                 if 'status' in df_display.columns:
                     statuses = ['전체'] + sorted(df_display['status'].dropna().unique().tolist())
-                    selected_status = st.selectbox("상태", statuses, key="filter_status")
+                    selected_status = st.selectbox("상태", statuses, key="filter_status", label_visibility="collapsed")
                     if selected_status != '전체':
                         filters['status'] = selected_status
-                
+            
+            with filter_cols[3]:
                 if 'contactPerson' in df_display.columns:
                     contacts = ['전체'] + sorted(df_display['contactPerson'].dropna().unique().tolist())
-                    selected_contact = st.selectbox("담당자", contacts, key="filter_contact")
+                    selected_contact = st.selectbox("담당자", contacts, key="filter_contact", label_visibility="collapsed")
                     if selected_contact != '전체':
                         filters['contactPerson'] = selected_contact
             
-            with filter_cols[2]:
+            with filter_cols[4]:
                 if 'carModel' in df_display.columns:
                     car_models = ['전체'] + sorted(df_display['carModel'].dropna().unique().tolist())
-                    selected_car = st.selectbox("차종", car_models, key="filter_car")
+                    selected_car = st.selectbox("차종", car_models, key="filter_car", label_visibility="collapsed")
                     if selected_car != '전체':
                         filters['carModel'] = selected_car
-                
+            
+            with filter_cols[5]:
                 if 'paymentStatus' in df_display.columns:
                     payments = ['전체'] + sorted(df_display['paymentStatus'].dropna().unique().tolist())
-                    selected_payment = st.selectbox("회수여부", payments, key="filter_payment")
+                    selected_payment = st.selectbox("회수여부", payments, key="filter_payment", label_visibility="collapsed")
                     if selected_payment != '전체':
                         filters['paymentStatus'] = selected_payment
             
-            with filter_cols[3]:
+            with filter_cols[6]:
                 if 'partNumber' in df_display.columns:
                     part_numbers = ['전체'] + sorted(df_display['partNumber'].dropna().unique().tolist())
-                    selected_part = st.selectbox("품번", part_numbers, key="filter_part")
+                    selected_part = st.selectbox("품번", part_numbers, key="filter_part", label_visibility="collapsed")
                     if selected_part != '전체':
                         filters['partNumber'] = selected_part
-                
-                if st.button("필터 초기화", use_container_width=True, key="reset_filter"):
+            
+            with filter_cols[7]:
+                if st.button("초기화", use_container_width=True, key="reset_filter"):
                     filters = {}
                     st.rerun()
             
