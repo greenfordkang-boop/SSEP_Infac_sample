@@ -583,59 +583,54 @@ def main_dashboard():
         st.markdown("""
         <style>
             .dashboard-header {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                padding: 2rem;
-                border-radius: 12px;
+                background: #1A202C;
+                padding: 1.5rem 2rem;
+                border-radius: 8px;
                 color: white;
-                margin-bottom: 2rem;
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                margin-bottom: 1.5rem;
+                border-left: 4px solid #4A90E2;
             }
             .metric-card {
                 background: white;
-                padding: 1.5rem;
-                border-radius: 12px;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-                border-left: 4px solid #4A90E2;
-                transition: transform 0.2s;
+                padding: 1rem 1.25rem;
+                border-radius: 6px;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                border-left: 3px solid #4A90E2;
             }
-            .metric-card:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-            }
-            .section-header {
-                font-size: 1.3rem;
-                font-weight: 600;
-                color: #2D3748;
-                margin: 1.5rem 0 1rem 0;
-                padding-bottom: 0.5rem;
-                border-bottom: 2px solid #E2E8F0;
-            }
-            .chart-container {
+            .summary-table {
                 background: white;
-                padding: 1rem;
-                border-radius: 8px;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+                padding: 0.75rem;
+                border-radius: 6px;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+                border: 1px solid #E2E8F0;
+            }
+            .summary-title {
+                font-size: 0.85rem;
+                font-weight: 600;
+                color: #4A5568;
+                margin-bottom: 0.5rem;
+                padding-bottom: 0.25rem;
+                border-bottom: 1px solid #E2E8F0;
             }
         </style>
         """, unsafe_allow_html=True)
         
-        st.markdown('<div class="dashboard-header"><h1 style="margin:0; color:white;">📊 대시보드 - 전체 현황</h1></div>', unsafe_allow_html=True)
+        st.markdown('<div class="dashboard-header"><h1 style="margin:0; color:white; font-size:1.5rem;">📊 대시보드</h1></div>', unsafe_allow_html=True)
         
         # 데이터프레임 생성
         df = pd.DataFrame(st.session_state.requests)
         
         if not df.empty:
-            # 주요 지표 카드 (상단) - 인포그래픽 스타일
-            st.markdown('<div class="section-header">📈 주요 지표</div>', unsafe_allow_html=True)
+            # 주요 지표 카드 (상단)
             metric_col1, metric_col2, metric_col3, metric_col4, metric_col5 = st.columns(5)
             
             with metric_col1:
                 total = len(df)
                 st.markdown(f"""
                 <div class="metric-card">
-                    <div style="font-size: 0.9rem; color: #718096; margin-bottom: 0.5rem;">전체 요청</div>
-                    <div style="font-size: 2rem; font-weight: 700; color: #2D3748;">{total}</div>
-                    <div style="font-size: 0.8rem; color: #A0AEC0;">건</div>
+                    <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">전체 요청</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #2D3748;">{total}</div>
+                    <div style="font-size: 0.7rem; color: #A0AEC0;">건</div>
                 </div>
                 """, unsafe_allow_html=True)
             
@@ -646,9 +641,9 @@ def main_dashboard():
                     in_progress = 0
                 st.markdown(f"""
                 <div class="metric-card" style="border-left-color: #3182CE;">
-                    <div style="font-size: 0.9rem; color: #718096; margin-bottom: 0.5rem;">진행 중</div>
-                    <div style="font-size: 2rem; font-weight: 700; color: #3182CE;">{in_progress}</div>
-                    <div style="font-size: 0.8rem; color: #A0AEC0;">건</div>
+                    <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">진행 중</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #3182CE;">{in_progress}</div>
+                    <div style="font-size: 0.7rem; color: #A0AEC0;">건</div>
                 </div>
                 """, unsafe_allow_html=True)
             
@@ -659,9 +654,9 @@ def main_dashboard():
                     completed = 0
                 st.markdown(f"""
                 <div class="metric-card" style="border-left-color: #38A169;">
-                    <div style="font-size: 0.9rem; color: #718096; margin-bottom: 0.5rem;">완료</div>
-                    <div style="font-size: 2rem; font-weight: 700; color: #38A169;">{completed}</div>
-                    <div style="font-size: 0.8rem; color: #A0AEC0;">건</div>
+                    <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">완료</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #38A169;">{completed}</div>
+                    <div style="font-size: 0.7rem; color: #A0AEC0;">건</div>
                 </div>
                 """, unsafe_allow_html=True)
             
@@ -672,9 +667,9 @@ def main_dashboard():
                     delayed = 0
                 st.markdown(f"""
                 <div class="metric-card" style="border-left-color: #E53E3E;">
-                    <div style="font-size: 0.9rem; color: #718096; margin-bottom: 0.5rem;">지연</div>
-                    <div style="font-size: 2rem; font-weight: 700; color: #E53E3E;">{delayed}</div>
-                    <div style="font-size: 0.8rem; color: #A0AEC0;">건</div>
+                    <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">지연</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #E53E3E;">{delayed}</div>
+                    <div style="font-size: 0.7rem; color: #A0AEC0;">건</div>
                 </div>
                 """, unsafe_allow_html=True)
             
@@ -685,168 +680,132 @@ def main_dashboard():
                     total_qty = 0
                 st.markdown(f"""
                 <div class="metric-card" style="border-left-color: #805AD5;">
-                    <div style="font-size: 0.9rem; color: #718096; margin-bottom: 0.5rem;">총 수량</div>
-                    <div style="font-size: 2rem; font-weight: 700; color: #805AD5;">{total_qty:,}</div>
-                    <div style="font-size: 0.8rem; color: #A0AEC0;">EA</div>
+                    <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">총 수량</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #805AD5;">{total_qty:,}</div>
+                    <div style="font-size: 0.7rem; color: #A0AEC0;">EA</div>
                 </div>
                 """, unsafe_allow_html=True)
             
             st.markdown("<br>", unsafe_allow_html=True)
             
-            # 2열 레이아웃으로 개선
-            col_left, col_right = st.columns(2)
+            # 요약집계표를 한 줄에 6개 배치
+            summary_col1, summary_col2, summary_col3, summary_col4, summary_col5, summary_col6 = st.columns(6)
             
-            with col_left:
-                # 상태별 요약
-                st.markdown('<div class="section-header">📋 상태별 요약</div>', unsafe_allow_html=True)
+            with summary_col1:
+                st.markdown('<div class="summary-title">상태별</div>', unsafe_allow_html=True)
                 if 'status' in df.columns:
                     status_summary = df['status'].value_counts().reset_index()
                     status_summary.columns = ['상태', '건수']
-                    status_summary['비율'] = (status_summary['건수'] / len(df) * 100).round(1).astype(str) + '%'
-                    
-                    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+                    st.markdown('<div class="summary-table">', unsafe_allow_html=True)
                     st.dataframe(
                         status_summary,
                         use_container_width=True,
                         hide_index=True,
-                        height=150
+                        height=120
                     )
                     st.markdown('</div>', unsafe_allow_html=True)
-                    st.markdown('<div class="chart-container" style="margin-top: 1rem;">', unsafe_allow_html=True)
-                    st.bar_chart(df['status'].value_counts(), height=200)
-                    st.markdown('</div>', unsafe_allow_html=True)
                 else:
-                    st.info("상태 데이터가 없습니다.")
-                
-                st.markdown("<br>", unsafe_allow_html=True)
-                
-                # 부서별 집계
-                st.markdown('<div class="section-header">🏛️ 부서별 집계</div>', unsafe_allow_html=True)
-                if 'department' in df.columns:
-                    dept_summary = df.groupby('department').agg({
-                        'id': 'count',
-                        'quantity': 'sum' if 'quantity' in df.columns else 'count'
-                    }).reset_index()
-                    dept_summary.columns = ['부서', '요청건수', '총수량']
-                    dept_summary = dept_summary.sort_values('요청건수', ascending=False)
-                    
-                    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-                    st.dataframe(
-                        dept_summary,
-                        use_container_width=True,
-                        hide_index=True,
-                        height=150
-                    )
-                    st.markdown('</div>', unsafe_allow_html=True)
-                    st.markdown('<div class="chart-container" style="margin-top: 1rem;">', unsafe_allow_html=True)
-                    st.bar_chart(df['department'].value_counts(), height=200)
-                    st.markdown('</div>', unsafe_allow_html=True)
-                else:
-                    st.info("부서 데이터가 없습니다.")
-                
-                st.markdown("<br>", unsafe_allow_html=True)
-                
-                # 회수 현황 집계
-                st.markdown('<div class="section-header">💰 회수 현황 집계</div>', unsafe_allow_html=True)
-                if 'paymentStatus' in df.columns:
-                    payment_summary = df['paymentStatus'].value_counts().reset_index()
-                    payment_summary.columns = ['회수여부', '건수']
-                    payment_summary['비율'] = (payment_summary['건수'] / len(df) * 100).round(1).astype(str) + '%'
-                    
-                    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-                    st.dataframe(
-                        payment_summary,
-                        use_container_width=True,
-                        hide_index=True,
-                        height=150
-                    )
-                    st.markdown('</div>', unsafe_allow_html=True)
-                    st.markdown('<div class="chart-container" style="margin-top: 1rem;">', unsafe_allow_html=True)
-                    st.bar_chart(df['paymentStatus'].value_counts(), height=200)
-                    st.markdown('</div>', unsafe_allow_html=True)
-                else:
-                    st.info("회수 데이터가 없습니다.")
+                    st.info("", icon="")
             
-            with col_right:
-                # 업체별 집계
-                st.markdown('<div class="section-header">🏢 업체별 집계</div>', unsafe_allow_html=True)
+            with summary_col2:
+                st.markdown('<div class="summary-title">업체별</div>', unsafe_allow_html=True)
                 if 'companyName' in df.columns:
                     company_summary = df.groupby('companyName').agg({
                         'id': 'count',
                         'quantity': 'sum' if 'quantity' in df.columns else 'count'
                     }).reset_index()
-                    company_summary.columns = ['업체명', '요청건수', '총수량']
-                    company_summary = company_summary.sort_values('요청건수', ascending=False).head(10)
-                    
-                    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+                    company_summary.columns = ['업체명', '건수', '수량']
+                    company_summary = company_summary.sort_values('건수', ascending=False).head(5)
+                    st.markdown('<div class="summary-table">', unsafe_allow_html=True)
                     st.dataframe(
                         company_summary,
                         use_container_width=True,
                         hide_index=True,
-                        height=150
+                        height=120
                     )
                     st.markdown('</div>', unsafe_allow_html=True)
-                    st.markdown('<div class="chart-container" style="margin-top: 1rem;">', unsafe_allow_html=True)
-                    st.bar_chart(df['companyName'].value_counts().head(10), height=200)
-                    st.markdown('</div>', unsafe_allow_html=True)
                 else:
-                    st.info("업체 데이터가 없습니다.")
-                
-                st.markdown("<br>", unsafe_allow_html=True)
-                
-                # 담당자별 집계
-                st.markdown('<div class="section-header">👥 담당자별 집계</div>', unsafe_allow_html=True)
+                    st.info("", icon="")
+            
+            with summary_col3:
+                st.markdown('<div class="summary-title">담당자별</div>', unsafe_allow_html=True)
                 if 'contactPerson' in df.columns:
                     contact_summary = df.groupby('contactPerson').agg({
                         'id': 'count',
                         'quantity': 'sum' if 'quantity' in df.columns else 'count'
                     }).reset_index()
-                    contact_summary.columns = ['담당자', '요청건수', '총수량']
-                    contact_summary = contact_summary.sort_values('요청건수', ascending=False).head(10)
-                    
-                    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+                    contact_summary.columns = ['담당자', '건수', '수량']
+                    contact_summary = contact_summary.sort_values('건수', ascending=False).head(5)
+                    st.markdown('<div class="summary-table">', unsafe_allow_html=True)
                     st.dataframe(
                         contact_summary,
                         use_container_width=True,
                         hide_index=True,
-                        height=150
+                        height=120
                     )
                     st.markdown('</div>', unsafe_allow_html=True)
-                    st.markdown('<div class="chart-container" style="margin-top: 1rem;">', unsafe_allow_html=True)
-                    st.bar_chart(df['contactPerson'].value_counts().head(10), height=200)
+                else:
+                    st.info("", icon="")
+            
+            with summary_col4:
+                st.markdown('<div class="summary-title">부서별</div>', unsafe_allow_html=True)
+                if 'department' in df.columns:
+                    dept_summary = df.groupby('department').agg({
+                        'id': 'count',
+                        'quantity': 'sum' if 'quantity' in df.columns else 'count'
+                    }).reset_index()
+                    dept_summary.columns = ['부서', '건수', '수량']
+                    dept_summary = dept_summary.sort_values('건수', ascending=False)
+                    st.markdown('<div class="summary-table">', unsafe_allow_html=True)
+                    st.dataframe(
+                        dept_summary,
+                        use_container_width=True,
+                        hide_index=True,
+                        height=120
+                    )
                     st.markdown('</div>', unsafe_allow_html=True)
                 else:
-                    st.info("담당자 데이터가 없습니다.")
-                
-                st.markdown("<br>", unsafe_allow_html=True)
-                
-                # 차종별 집계
-                st.markdown('<div class="section-header">🚗 차종별 집계</div>', unsafe_allow_html=True)
+                    st.info("", icon="")
+            
+            with summary_col5:
+                st.markdown('<div class="summary-title">회수현황</div>', unsafe_allow_html=True)
+                if 'paymentStatus' in df.columns:
+                    payment_summary = df['paymentStatus'].value_counts().reset_index()
+                    payment_summary.columns = ['회수여부', '건수']
+                    st.markdown('<div class="summary-table">', unsafe_allow_html=True)
+                    st.dataframe(
+                        payment_summary,
+                        use_container_width=True,
+                        hide_index=True,
+                        height=120
+                    )
+                    st.markdown('</div>', unsafe_allow_html=True)
+                else:
+                    st.info("", icon="")
+            
+            with summary_col6:
+                st.markdown('<div class="summary-title">차종별</div>', unsafe_allow_html=True)
                 if 'carModel' in df.columns:
                     car_summary = df.groupby('carModel').agg({
                         'id': 'count',
                         'quantity': 'sum' if 'quantity' in df.columns else 'count'
                     }).reset_index()
-                    car_summary.columns = ['차종', '요청건수', '총수량']
-                    car_summary = car_summary.sort_values('요청건수', ascending=False).head(10)
-                    
-                    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+                    car_summary.columns = ['차종', '건수', '수량']
+                    car_summary = car_summary.sort_values('건수', ascending=False).head(5)
+                    st.markdown('<div class="summary-table">', unsafe_allow_html=True)
                     st.dataframe(
                         car_summary,
                         use_container_width=True,
                         hide_index=True,
-                        height=150
+                        height=120
                     )
                     st.markdown('</div>', unsafe_allow_html=True)
-                    st.markdown('<div class="chart-container" style="margin-top: 1rem;">', unsafe_allow_html=True)
-                    st.bar_chart(df['carModel'].value_counts().head(10), height=200)
-                    st.markdown('</div>', unsafe_allow_html=True)
                 else:
-                    st.info("차종 데이터가 없습니다.")
+                    st.info("", icon="")
             
-            # 최근 요청 현황 (전체 너비)
+            # 최근 요청 현황
             st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown('<div class="section-header">🕐 최근 요청 현황 (최근 5건)</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size: 0.95rem; font-weight: 600; color: #2D3748; margin: 1rem 0 0.5rem 0;">최근 요청 현황 (최근 5건)</div>', unsafe_allow_html=True)
             if 'requestDate' in df.columns:
                 df_sorted = df.copy()
                 df_sorted['requestDate'] = pd.to_datetime(df_sorted['requestDate'], errors='coerce')
@@ -855,14 +814,12 @@ def main_dashboard():
                 recent_cols = ['id', 'requestDate', 'companyName', 'partNumber', 'partName', 'status', 'quantity']
                 recent_cols = [col for col in recent_cols if col in df_recent.columns]
                 
-                st.markdown('<div class="chart-container">', unsafe_allow_html=True)
                 st.dataframe(
                     df_recent[recent_cols],
                     use_container_width=True,
                     hide_index=True,
-                    height=200
+                    height=180
                 )
-                st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info("날짜 데이터가 없습니다.")
                 
