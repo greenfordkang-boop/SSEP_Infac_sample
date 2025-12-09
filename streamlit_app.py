@@ -295,41 +295,74 @@ if 'requests' not in st.session_state:
 USERS_FILE = 'users.json'
 
 def load_users():
-    """사용자 데이터 로드 - 기존 데이터 보존"""
-    try:
-        if os.path.exists(USERS_FILE):
+    """사용자 데이터 로드 - 기존 데이터 절대 덮어쓰지 않음"""
+    # 파일이 존재하면 무조건 읽기 시도
+    if os.path.exists(USERS_FILE):
+        try:
             with open(USERS_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 # 기존 데이터 구조 확인 및 보존
-                if isinstance(data, dict) and 'admins' in data and 'customers' in data:
+                if isinstance(data, dict):
+                    # 기본 구조가 없으면 추가
+                    if 'admins' not in data:
+                        data['admins'] = []
+                    if 'customers' not in data:
+                        data['customers'] = []
                     return data
-                # 잘못된 형식이면 빈 구조 반환
-    except Exception as e:
-        # 파일이 손상되었거나 읽을 수 없으면 빈 구조 반환
-        pass
+        except json.JSONDecodeError:
+            # JSON 파싱 오류 - 파일 백업 후 빈 구조 반환
+            try:
+                backup_file = f"{USERS_FILE}.backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                import shutil
+                shutil.copy2(USERS_FILE, backup_file)
+            except:
+                pass
+            # 손상된 파일이어도 기존 파일은 유지
+            return {
+                'admins': [],
+                'customers': []
+            }
+        except Exception as e:
+            # 기타 오류 - 파일은 유지하고 빈 구조만 반환
+            return {
+                'admins': [],
+                'customers': []
+            }
     
-    # 파일이 없거나 손상된 경우에만 빈 구조 반환
-    # 기존 파일이 있으면 덮어쓰지 않음
-    if not os.path.exists(USERS_FILE):
-        return {
-            'admins': [],
-            'customers': []
-        }
-    else:
-        # 파일이 있지만 읽을 수 없는 경우, 빈 구조로 초기화하지 않고 기존 파일 유지
-        return {
-            'admins': [],
-            'customers': []
-        }
+    # 파일이 없을 때만 빈 구조 반환 (파일 생성은 하지 않음)
+    return {
+        'admins': [],
+        'customers': []
+    }
 
 def save_users(users_data):
-    """사용자 데이터 저장"""
+    """사용자 데이터 저장 - 기존 파일 백업 후 저장"""
     try:
+        # 기존 파일이 있으면 백업
+        if os.path.exists(USERS_FILE):
+            try:
+                backup_file = f"{USERS_FILE}.backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                import shutil
+                shutil.copy2(USERS_FILE, backup_file)
+                # 오래된 백업 파일 정리 (최근 5개만 유지)
+                import glob
+                backups = sorted(glob.glob(f"{USERS_FILE}.backup_*"), reverse=True)
+                for old_backup in backups[5:]:
+                    try:
+                        os.remove(old_backup)
+                    except:
+                        pass
+            except:
+                pass
+        
+        # 새 데이터 저장
         with open(USERS_FILE, 'w', encoding='utf-8') as f:
             json.dump(users_data, f, ensure_ascii=False, indent=2)
         return True
     except Exception as e:
-        st.error(f"사용자 데이터 저장 실패: {str(e)}")
+        # 저장 실패 시에도 기존 파일은 유지됨
+        if 'st' in globals():
+            st.error(f"사용자 데이터 저장 실패: {str(e)}")
         return False
 
 def register_user(role, username, password, company_name=None, name=None):
@@ -377,13 +410,27 @@ def verify_user(role, username=None, password=None, company_name=None, name=None
 LOGIN_INFO_FILE = 'login_info.json'
 
 def load_login_info():
-    """저장된 로그인 정보 로드"""
-    try:
-        if os.path.exists(LOGIN_INFO_FILE):
+    """저장된 로그인 정보 로드 - 기존 데이터 절대 덮어쓰지 않음"""
+    if os.path.exists(LOGIN_INFO_FILE):
+        try:
             with open(LOGIN_INFO_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-    except:
-        pass
+                data = json.load(f)
+                # 필수 필드 확인
+                if isinstance(data, dict) and 'role' in data:
+                    return data
+        except json.JSONDecodeError:
+            # JSON 파싱 오류 - 파일 백업
+            try:
+                backup_file = f"{LOGIN_INFO_FILE}.backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                import shutil
+                shutil.copy2(LOGIN_INFO_FILE, backup_file)
+            except:
+                pass
+            # 손상된 파일이어도 기존 파일은 유지
+            return None
+        except Exception:
+            # 기타 오류 - 파일은 유지
+            return None
     return None
 
 def save_login_info(role, username=None, company_name=None, name=None):
