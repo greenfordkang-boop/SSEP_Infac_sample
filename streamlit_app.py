@@ -290,12 +290,6 @@ if 'requests' not in st.session_state:
         },
     ]
 
-if 'authenticated' not in st.session_state:
-    st.session_state.authenticated = False
-
-if 'user_role' not in st.session_state:
-    st.session_state.user_role = None
-
 # 사용자 데이터 로드 및 초기화
 USERS_FILE = 'users.json'
 
@@ -363,6 +357,74 @@ def verify_user(role, username=None, password=None, company_name=None, name=None
                         if u['companyName'] == company_name and u['name'] == name and u['password'] == password), None)
         return customer is not None
 
+# 로그인 정보 영구 저장을 위한 파일
+LOGIN_INFO_FILE = 'login_info.json'
+
+def load_login_info():
+    """저장된 로그인 정보 로드"""
+    try:
+        if os.path.exists(LOGIN_INFO_FILE):
+            with open(LOGIN_INFO_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except:
+        pass
+    return None
+
+def save_login_info(role, username=None, company_name=None, name=None):
+    """로그인 정보 저장"""
+    try:
+        login_info = {
+            'role': role,
+            'username': username,
+            'company_name': company_name,
+            'name': name,
+            'saved_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+        with open(LOGIN_INFO_FILE, 'w', encoding='utf-8') as f:
+            json.dump(login_info, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        return False
+
+def clear_login_info():
+    """로그인 정보 삭제"""
+    try:
+        if os.path.exists(LOGIN_INFO_FILE):
+            os.remove(LOGIN_INFO_FILE)
+    except:
+        pass
+
+# 저장된 로그인 정보가 있으면 자동 로그인
+if 'authenticated' not in st.session_state:
+    saved_login = load_login_info()
+    if saved_login:
+        # 저장된 정보로 자동 로그인 (이미 인증된 사용자로 간주)
+        if saved_login['role'] == 'ADMIN':
+            # 관리자 정보 확인
+            users = load_users()
+            admin = next((u for u in users['admins'] 
+                         if u['username'] == saved_login.get('username')), None)
+            if admin:
+                st.session_state.authenticated = True
+                st.session_state.user_role = "ADMIN"
+                st.session_state.username = saved_login.get('username')
+        elif saved_login['role'] == 'CUSTOMER':
+            # 고객사는 업체명과 이름으로 확인
+            users = load_users()
+            customer = next((u for u in users['customers'] 
+                           if u['companyName'] == saved_login.get('company_name') 
+                           and u['name'] == saved_login.get('name')), None)
+            if customer:
+                st.session_state.authenticated = True
+                st.session_state.user_role = "CUSTOMER"
+                st.session_state.user_company = saved_login.get('company_name')
+                st.session_state.user_name = saved_login.get('name')
+    else:
+        st.session_state.authenticated = False
+
+if 'user_role' not in st.session_state:
+    st.session_state.user_role = None
+
 
 # 로그인/등록 페이지
 def login_page():
@@ -390,6 +452,8 @@ def login_page():
                             st.session_state.user_role = "CUSTOMER"
                             st.session_state.user_company = company_name
                             st.session_state.user_name = name
+                            # 로그인 정보 저장
+                            save_login_info('CUSTOMER', company_name=company_name, name=name)
                             st.success("로그인 성공!")
                             st.rerun()
                         else:
@@ -413,6 +477,8 @@ def login_page():
                                         st.session_state.user_role = "CUSTOMER"
                                         st.session_state.user_company = company_name
                                         st.session_state.user_name = name
+                                        # 로그인 정보 저장
+                                        save_login_info('CUSTOMER', company_name=company_name, name=name)
                                         st.success(f"회원가입 및 로그인 완료! {message}")
                                         st.rerun()
                                     else:
@@ -428,6 +494,8 @@ def login_page():
                             st.session_state.authenticated = True
                             st.session_state.user_role = "ADMIN"
                             st.session_state.username = username
+                            # 로그인 정보 저장
+                            save_login_info('ADMIN', username=username)
                             st.success("로그인 성공!")
                             st.rerun()
                         else:
@@ -498,6 +566,8 @@ def main_dashboard():
         if st.button("로그아웃", use_container_width=True):
             st.session_state.authenticated = False
             st.session_state.user_role = None
+            # 저장된 로그인 정보 삭제
+            clear_login_info()
             st.rerun()
         
         st.markdown("---")
@@ -510,176 +580,273 @@ def main_dashboard():
     
     # 대시보드
     if view_option == "대시보드":
-        st.header("📊 대시보드 - 전체 현황")
+        st.markdown("""
+        <style>
+            .dashboard-header {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                padding: 2rem;
+                border-radius: 12px;
+                color: white;
+                margin-bottom: 2rem;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }
+            .metric-card {
+                background: white;
+                padding: 1.5rem;
+                border-radius: 12px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+                border-left: 4px solid #4A90E2;
+                transition: transform 0.2s;
+            }
+            .metric-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+            }
+            .section-header {
+                font-size: 1.3rem;
+                font-weight: 600;
+                color: #2D3748;
+                margin: 1.5rem 0 1rem 0;
+                padding-bottom: 0.5rem;
+                border-bottom: 2px solid #E2E8F0;
+            }
+            .chart-container {
+                background: white;
+                padding: 1rem;
+                border-radius: 8px;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        st.markdown('<div class="dashboard-header"><h1 style="margin:0; color:white;">📊 대시보드 - 전체 현황</h1></div>', unsafe_allow_html=True)
         
         # 데이터프레임 생성
         df = pd.DataFrame(st.session_state.requests)
         
         if not df.empty:
-            # 주요 지표 카드 (상단)
-            st.subheader("📈 주요 지표")
+            # 주요 지표 카드 (상단) - 인포그래픽 스타일
+            st.markdown('<div class="section-header">📈 주요 지표</div>', unsafe_allow_html=True)
             metric_col1, metric_col2, metric_col3, metric_col4, metric_col5 = st.columns(5)
             
             with metric_col1:
                 total = len(df)
-                st.metric("전체 요청", f"{total}건", delta=None)
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div style="font-size: 0.9rem; color: #718096; margin-bottom: 0.5rem;">전체 요청</div>
+                    <div style="font-size: 2rem; font-weight: 700; color: #2D3748;">{total}</div>
+                    <div style="font-size: 0.8rem; color: #A0AEC0;">건</div>
+                </div>
+                """, unsafe_allow_html=True)
             
             with metric_col2:
                 if 'status' in df.columns:
                     in_progress = len(df[df['status'] == '진행 중'])
-                    st.metric("진행 중", f"{in_progress}건", delta=None)
                 else:
-                    st.metric("진행 중", "0건")
+                    in_progress = 0
+                st.markdown(f"""
+                <div class="metric-card" style="border-left-color: #3182CE;">
+                    <div style="font-size: 0.9rem; color: #718096; margin-bottom: 0.5rem;">진행 중</div>
+                    <div style="font-size: 2rem; font-weight: 700; color: #3182CE;">{in_progress}</div>
+                    <div style="font-size: 0.8rem; color: #A0AEC0;">건</div>
+                </div>
+                """, unsafe_allow_html=True)
             
             with metric_col3:
                 if 'status' in df.columns:
                     completed = len(df[df['status'] == '출하 완료'])
-                    st.metric("완료", f"{completed}건", delta=None)
                 else:
-                    st.metric("완료", "0건")
+                    completed = 0
+                st.markdown(f"""
+                <div class="metric-card" style="border-left-color: #38A169;">
+                    <div style="font-size: 0.9rem; color: #718096; margin-bottom: 0.5rem;">완료</div>
+                    <div style="font-size: 2rem; font-weight: 700; color: #38A169;">{completed}</div>
+                    <div style="font-size: 0.8rem; color: #A0AEC0;">건</div>
+                </div>
+                """, unsafe_allow_html=True)
             
             with metric_col4:
                 if 'status' in df.columns:
                     delayed = len(df[df['status'] == '지연'])
-                    st.metric("지연", f"{delayed}건", delta=None)
                 else:
-                    st.metric("지연", "0건")
+                    delayed = 0
+                st.markdown(f"""
+                <div class="metric-card" style="border-left-color: #E53E3E;">
+                    <div style="font-size: 0.9rem; color: #718096; margin-bottom: 0.5rem;">지연</div>
+                    <div style="font-size: 2rem; font-weight: 700; color: #E53E3E;">{delayed}</div>
+                    <div style="font-size: 0.8rem; color: #A0AEC0;">건</div>
+                </div>
+                """, unsafe_allow_html=True)
             
             with metric_col5:
                 if 'quantity' in df.columns:
                     total_qty = df['quantity'].sum()
-                    st.metric("총 수량", f"{total_qty:,}EA", delta=None)
                 else:
-                    st.metric("총 수량", "0EA")
+                    total_qty = 0
+                st.markdown(f"""
+                <div class="metric-card" style="border-left-color: #805AD5;">
+                    <div style="font-size: 0.9rem; color: #718096; margin-bottom: 0.5rem;">총 수량</div>
+                    <div style="font-size: 2rem; font-weight: 700; color: #805AD5;">{total_qty:,}</div>
+                    <div style="font-size: 0.8rem; color: #A0AEC0;">EA</div>
+                </div>
+                """, unsafe_allow_html=True)
             
-            st.markdown("---")
+            st.markdown("<br>", unsafe_allow_html=True)
             
-            # 상태별 요약
-            st.subheader("📋 상태별 요약")
-            if 'status' in df.columns:
-                status_summary = df['status'].value_counts().reset_index()
-                status_summary.columns = ['상태', '건수']
-                status_summary['비율'] = (status_summary['건수'] / len(df) * 100).round(1).astype(str) + '%'
-                
-                summary_col1, summary_col2 = st.columns([1, 2])
-                
-                with summary_col1:
+            # 2열 레이아웃으로 개선
+            col_left, col_right = st.columns(2)
+            
+            with col_left:
+                # 상태별 요약
+                st.markdown('<div class="section-header">📋 상태별 요약</div>', unsafe_allow_html=True)
+                if 'status' in df.columns:
+                    status_summary = df['status'].value_counts().reset_index()
+                    status_summary.columns = ['상태', '건수']
+                    status_summary['비율'] = (status_summary['건수'] / len(df) * 100).round(1).astype(str) + '%'
+                    
+                    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
                     st.dataframe(
                         status_summary,
                         use_container_width=True,
-                        hide_index=True
+                        hide_index=True,
+                        height=150
                     )
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="chart-container" style="margin-top: 1rem;">', unsafe_allow_html=True)
+                    st.bar_chart(df['status'].value_counts(), height=200)
+                    st.markdown('</div>', unsafe_allow_html=True)
+                else:
+                    st.info("상태 데이터가 없습니다.")
                 
-                with summary_col2:
-                    st.bar_chart(df['status'].value_counts())
-            else:
-                st.info("상태 데이터가 없습니다.")
-            
-            st.markdown("---")
-            
-            # 업체별 집계
-            st.subheader("🏢 업체별 집계")
-            if 'companyName' in df.columns:
-                company_summary = df.groupby('companyName').agg({
-                    'id': 'count',
-                    'quantity': 'sum' if 'quantity' in df.columns else 'count'
-                }).reset_index()
-                company_summary.columns = ['업체명', '요청건수', '총수량']
-                company_summary = company_summary.sort_values('요청건수', ascending=False)
+                st.markdown("<br>", unsafe_allow_html=True)
                 
-                company_col1, company_col2 = st.columns([1, 2])
-                
-                with company_col1:
-                    st.dataframe(
-                        company_summary,
-                        use_container_width=True,
-                        hide_index=True
-                    )
-                
-                with company_col2:
-                    st.bar_chart(df['companyName'].value_counts().head(10))
-            else:
-                st.info("업체 데이터가 없습니다.")
-            
-            st.markdown("---")
-            
-            # 담당자별 집계
-            st.subheader("👥 담당자별 집계")
-            if 'contactPerson' in df.columns:
-                contact_summary = df.groupby('contactPerson').agg({
-                    'id': 'count',
-                    'quantity': 'sum' if 'quantity' in df.columns else 'count'
-                }).reset_index()
-                contact_summary.columns = ['담당자', '요청건수', '총수량']
-                contact_summary = contact_summary.sort_values('요청건수', ascending=False)
-                
-                contact_col1, contact_col2 = st.columns([1, 2])
-                
-                with contact_col1:
-                    st.dataframe(
-                        contact_summary,
-                        use_container_width=True,
-                        hide_index=True
-                    )
-                
-                with contact_col2:
-                    st.bar_chart(df['contactPerson'].value_counts().head(10))
-            else:
-                st.info("담당자 데이터가 없습니다.")
-            
-            st.markdown("---")
-            
-            # 부서별 집계
-            st.subheader("🏛️ 부서별 집계")
-            if 'department' in df.columns:
-                dept_summary = df.groupby('department').agg({
-                    'id': 'count',
-                    'quantity': 'sum' if 'quantity' in df.columns else 'count'
-                }).reset_index()
-                dept_summary.columns = ['부서', '요청건수', '총수량']
-                dept_summary = dept_summary.sort_values('요청건수', ascending=False)
-                
-                dept_col1, dept_col2 = st.columns([1, 2])
-                
-                with dept_col1:
+                # 부서별 집계
+                st.markdown('<div class="section-header">🏛️ 부서별 집계</div>', unsafe_allow_html=True)
+                if 'department' in df.columns:
+                    dept_summary = df.groupby('department').agg({
+                        'id': 'count',
+                        'quantity': 'sum' if 'quantity' in df.columns else 'count'
+                    }).reset_index()
+                    dept_summary.columns = ['부서', '요청건수', '총수량']
+                    dept_summary = dept_summary.sort_values('요청건수', ascending=False)
+                    
+                    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
                     st.dataframe(
                         dept_summary,
                         use_container_width=True,
-                        hide_index=True
+                        hide_index=True,
+                        height=150
                     )
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="chart-container" style="margin-top: 1rem;">', unsafe_allow_html=True)
+                    st.bar_chart(df['department'].value_counts(), height=200)
+                    st.markdown('</div>', unsafe_allow_html=True)
+                else:
+                    st.info("부서 데이터가 없습니다.")
                 
-                with dept_col2:
-                    st.bar_chart(df['department'].value_counts())
-            else:
-                st.info("부서 데이터가 없습니다.")
-            
-            st.markdown("---")
-            
-            # 회수 현황 집계
-            st.subheader("💰 회수 현황 집계")
-            if 'paymentStatus' in df.columns:
-                payment_summary = df['paymentStatus'].value_counts().reset_index()
-                payment_summary.columns = ['회수여부', '건수']
-                payment_summary['비율'] = (payment_summary['건수'] / len(df) * 100).round(1).astype(str) + '%'
+                st.markdown("<br>", unsafe_allow_html=True)
                 
-                payment_col1, payment_col2 = st.columns([1, 2])
-                
-                with payment_col1:
+                # 회수 현황 집계
+                st.markdown('<div class="section-header">💰 회수 현황 집계</div>', unsafe_allow_html=True)
+                if 'paymentStatus' in df.columns:
+                    payment_summary = df['paymentStatus'].value_counts().reset_index()
+                    payment_summary.columns = ['회수여부', '건수']
+                    payment_summary['비율'] = (payment_summary['건수'] / len(df) * 100).round(1).astype(str) + '%'
+                    
+                    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
                     st.dataframe(
                         payment_summary,
                         use_container_width=True,
-                        hide_index=True
+                        hide_index=True,
+                        height=150
                     )
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="chart-container" style="margin-top: 1rem;">', unsafe_allow_html=True)
+                    st.bar_chart(df['paymentStatus'].value_counts(), height=200)
+                    st.markdown('</div>', unsafe_allow_html=True)
+                else:
+                    st.info("회수 데이터가 없습니다.")
+            
+            with col_right:
+                # 업체별 집계
+                st.markdown('<div class="section-header">🏢 업체별 집계</div>', unsafe_allow_html=True)
+                if 'companyName' in df.columns:
+                    company_summary = df.groupby('companyName').agg({
+                        'id': 'count',
+                        'quantity': 'sum' if 'quantity' in df.columns else 'count'
+                    }).reset_index()
+                    company_summary.columns = ['업체명', '요청건수', '총수량']
+                    company_summary = company_summary.sort_values('요청건수', ascending=False).head(10)
+                    
+                    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+                    st.dataframe(
+                        company_summary,
+                        use_container_width=True,
+                        hide_index=True,
+                        height=150
+                    )
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="chart-container" style="margin-top: 1rem;">', unsafe_allow_html=True)
+                    st.bar_chart(df['companyName'].value_counts().head(10), height=200)
+                    st.markdown('</div>', unsafe_allow_html=True)
+                else:
+                    st.info("업체 데이터가 없습니다.")
                 
-                with payment_col2:
-                    st.bar_chart(df['paymentStatus'].value_counts())
-            else:
-                st.info("회수 데이터가 없습니다.")
+                st.markdown("<br>", unsafe_allow_html=True)
+                
+                # 담당자별 집계
+                st.markdown('<div class="section-header">👥 담당자별 집계</div>', unsafe_allow_html=True)
+                if 'contactPerson' in df.columns:
+                    contact_summary = df.groupby('contactPerson').agg({
+                        'id': 'count',
+                        'quantity': 'sum' if 'quantity' in df.columns else 'count'
+                    }).reset_index()
+                    contact_summary.columns = ['담당자', '요청건수', '총수량']
+                    contact_summary = contact_summary.sort_values('요청건수', ascending=False).head(10)
+                    
+                    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+                    st.dataframe(
+                        contact_summary,
+                        use_container_width=True,
+                        hide_index=True,
+                        height=150
+                    )
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="chart-container" style="margin-top: 1rem;">', unsafe_allow_html=True)
+                    st.bar_chart(df['contactPerson'].value_counts().head(10), height=200)
+                    st.markdown('</div>', unsafe_allow_html=True)
+                else:
+                    st.info("담당자 데이터가 없습니다.")
+                
+                st.markdown("<br>", unsafe_allow_html=True)
+                
+                # 차종별 집계
+                st.markdown('<div class="section-header">🚗 차종별 집계</div>', unsafe_allow_html=True)
+                if 'carModel' in df.columns:
+                    car_summary = df.groupby('carModel').agg({
+                        'id': 'count',
+                        'quantity': 'sum' if 'quantity' in df.columns else 'count'
+                    }).reset_index()
+                    car_summary.columns = ['차종', '요청건수', '총수량']
+                    car_summary = car_summary.sort_values('요청건수', ascending=False).head(10)
+                    
+                    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+                    st.dataframe(
+                        car_summary,
+                        use_container_width=True,
+                        hide_index=True,
+                        height=150
+                    )
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="chart-container" style="margin-top: 1rem;">', unsafe_allow_html=True)
+                    st.bar_chart(df['carModel'].value_counts().head(10), height=200)
+                    st.markdown('</div>', unsafe_allow_html=True)
+                else:
+                    st.info("차종 데이터가 없습니다.")
             
-            st.markdown("---")
-            
-            # 최근 요청 현황 (최근 5건)
-            st.subheader("🕐 최근 요청 현황 (최근 5건)")
+            # 최근 요청 현황 (전체 너비)
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown('<div class="section-header">🕐 최근 요청 현황 (최근 5건)</div>', unsafe_allow_html=True)
             if 'requestDate' in df.columns:
                 df_sorted = df.copy()
                 df_sorted['requestDate'] = pd.to_datetime(df_sorted['requestDate'], errors='coerce')
@@ -688,40 +855,16 @@ def main_dashboard():
                 recent_cols = ['id', 'requestDate', 'companyName', 'partNumber', 'partName', 'status', 'quantity']
                 recent_cols = [col for col in recent_cols if col in df_recent.columns]
                 
+                st.markdown('<div class="chart-container">', unsafe_allow_html=True)
                 st.dataframe(
                     df_recent[recent_cols],
                     use_container_width=True,
                     hide_index=True,
                     height=200
                 )
+                st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info("날짜 데이터가 없습니다.")
-            
-            st.markdown("---")
-            
-            # 차종별 집계
-            st.subheader("🚗 차종별 집계")
-            if 'carModel' in df.columns:
-                car_summary = df.groupby('carModel').agg({
-                    'id': 'count',
-                    'quantity': 'sum' if 'quantity' in df.columns else 'count'
-                }).reset_index()
-                car_summary.columns = ['차종', '요청건수', '총수량']
-                car_summary = car_summary.sort_values('요청건수', ascending=False)
-                
-                car_col1, car_col2 = st.columns([1, 2])
-                
-                with car_col1:
-                    st.dataframe(
-                        car_summary,
-                        use_container_width=True,
-                        hide_index=True
-                    )
-                
-                with car_col2:
-                    st.bar_chart(df['carModel'].value_counts().head(10))
-            else:
-                st.info("차종 데이터가 없습니다.")
                 
         else:
             st.info("등록된 요청이 없습니다.")
