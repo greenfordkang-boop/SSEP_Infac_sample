@@ -864,7 +864,25 @@ def main_dashboard():
             available_cols = [col for col in display_cols if col in df.columns]
             df_display = df[available_cols].copy()
             
-            # 검색 필터링
+            # 컬럼명 한글 매핑 (표시용)
+            column_mapping_display = {
+                'id': '번호',
+                'requestDate': '접수일',
+                'companyName': '회사명',
+                'department': '부서',
+                'contactPerson': '요청자',
+                'carModel': '차종',
+                'partNumber': '품번',
+                'partName': '부품명',
+                'quantity': '수량',
+                'dueDate': '납기일',
+                'status': '상태',
+                'sampleCompletionDate': '자재완료일',
+                'shipDate': '납품일',
+                'paymentStatus': '대금회수'
+            }
+            
+            # 검색 필터링 (영어 컬럼명으로)
             if search_term:
                 mask = (
                     df_display['companyName'].astype(str).str.contains(search_term, case=False, na=False) |
@@ -872,6 +890,10 @@ def main_dashboard():
                     df_display['partName'].astype(str).str.contains(search_term, case=False, na=False)
                 )
                 df_display = df_display[mask]
+            
+            # 표시용 데이터프레임 생성 (한글 컬럼명)
+            df_display_kr = df_display.copy()
+            df_display_kr.columns = [column_mapping_display.get(col, col) for col in df_display_kr.columns]
             
             # 열별 필터 추가 - 한 줄에 모두 표시
             st.subheader("🔽 필터")
@@ -952,22 +974,46 @@ def main_dashboard():
                     filters = {}
                     st.rerun()
             
-            # 필터 적용
+            # 필터 적용 (영어 컬럼명으로 필터링)
             df_filtered = df_display.copy()
             for col, value in filters.items():
                 if col in df_filtered.columns:
                     df_filtered = df_filtered[df_filtered[col] == value]
+            
+            # 필터링된 데이터를 한글 컬럼명으로 변환
+            df_filtered_kr = df_filtered.copy()
+            df_filtered_kr.columns = [column_mapping_display.get(col, col) for col in df_filtered_kr.columns]
             
             # 필터링된 데이터 표시
             if not df_filtered.empty:
                 # 엑셀 다운로드 버튼
                 download_col1, download_col2 = st.columns([1, 5])
                 with download_col1:
-                    # 엑셀 다운로드
+                    # 엑셀 다운로드 - 컬럼명 한글로 변환
                     def to_excel(df):
                         output = BytesIO()
+                        # 컬럼명 한글 매핑
+                        column_mapping = {
+                            'id': '번호',
+                            'requestDate': '접수일',
+                            'companyName': '회사명',
+                            'department': '부서',
+                            'contactPerson': '요청자',
+                            'carModel': '차종',
+                            'partNumber': '품번',
+                            'partName': '부품명',
+                            'quantity': '수량',
+                            'dueDate': '납기일',
+                            'status': '상태',
+                            'sampleCompletionDate': '자재완료일',
+                            'shipDate': '납품일',
+                            'paymentStatus': '대금회수'
+                        }
+                        df_export = df.copy()
+                        df_export.columns = [column_mapping.get(col, col) for col in df_export.columns]
+                        
                         with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                            df.to_excel(writer, index=False, sheet_name='원장')
+                            df_export.to_excel(writer, index=False, sheet_name='원장')
                         output.seek(0)
                         return output.getvalue()
                     
@@ -982,7 +1028,7 @@ def main_dashboard():
                     )
                 
                 st.dataframe(
-                    df_filtered,
+                    df_filtered_kr,
                     use_container_width=True,
                     hide_index=True,
                     height=400
@@ -1015,8 +1061,12 @@ def main_dashboard():
     elif view_option == "새 요청 등록":
         st.header("➕ 새 샘플 요청 등록")
         
-        with st.form("new_request_form"):
-            col1, col2 = st.columns(2)
+        # 엑셀 업로드 탭 추가
+        tab1, tab2 = st.tabs(["📝 개별 등록", "📤 엑셀 일괄 등록"])
+        
+        with tab1:
+            with st.form("new_request_form"):
+                col1, col2 = st.columns(2)
             with col1:
                 request_date = st.date_input("접수일", value=datetime.now().date())
                 company_name = st.text_input("업체명 *", value=st.session_state.get('user_company', ''))
@@ -1058,6 +1108,107 @@ def main_dashboard():
                     st.rerun()
                 else:
                     st.error("필수 항목(*)을 모두 입력해주세요.")
+        
+        with tab2:
+            st.subheader("📤 엑셀 파일로 일괄 등록")
+            st.info("💡 엑셀 파일 형식: 번호, 접수일, 회사명, 부서, 요청자, 차종, 품번, 부품명, 수량, 납기일, 상태, 자재완료일, 납품일, 대금회수")
+            
+            uploaded_file = st.file_uploader(
+                "엑셀 파일 선택 (.xlsx, .xls)",
+                type=['xlsx', 'xls'],
+                help="엑셀 파일을 업로드하면 일괄 등록됩니다."
+            )
+            
+            if uploaded_file is not None:
+                try:
+                    # 엑셀 파일 읽기
+                    df_upload = pd.read_excel(uploaded_file)
+                    
+                    # 컬럼명 한글 -> 영어 매핑
+                    column_mapping = {
+                        '번호': 'id',
+                        '접수일': 'requestDate',
+                        '회사명': 'companyName',
+                        '부서': 'department',
+                        '요청자': 'contactPerson',
+                        '차종': 'carModel',
+                        '품번': 'partNumber',
+                        '부품명': 'partName',
+                        '수량': 'quantity',
+                        '납기일': 'dueDate',
+                        '상태': 'status',
+                        '자재완료일': 'sampleCompletionDate',
+                        '납품일': 'shipDate',
+                        '대금회수': 'paymentStatus'
+                    }
+                    
+                    # 컬럼명 변환
+                    df_upload.columns = [column_mapping.get(col, col) for col in df_upload.columns]
+                    
+                    # 미리보기
+                    st.subheader("📋 업로드 데이터 미리보기")
+                    st.dataframe(df_upload, use_container_width=True, hide_index=True)
+                    
+                    if st.button("✅ 일괄 등록", type="primary", use_container_width=True):
+                        # 기존 최대 ID 찾기
+                        max_id = max([r['id'] for r in st.session_state.requests], default=0)
+                        
+                        # 데이터 변환 및 추가
+                        added_count = 0
+                        for idx, row in df_upload.iterrows():
+                            try:
+                                # 필수 필드 확인
+                                if pd.notna(row.get('companyName')) and pd.notna(row.get('partNumber')):
+                                    new_id = max_id + idx + 1
+                                    
+                                    # 날짜 형식 변환
+                                    def format_date(val):
+                                        if pd.isna(val) or val == '':
+                                            return ''
+                                        if isinstance(val, str):
+                                            return val
+                                        if hasattr(val, 'strftime'):
+                                            return val.strftime('%Y-%m-%d')
+                                        return str(val)
+                                    
+                                    new_request = {
+                                        'id': int(new_id),
+                                        'requestDate': format_date(row.get('requestDate', datetime.now().date())),
+                                        'companyName': str(row.get('companyName', '')),
+                                        'department': str(row.get('department', '')) if pd.notna(row.get('department')) else '',
+                                        'contactPerson': str(row.get('contactPerson', '')) if pd.notna(row.get('contactPerson')) else '',
+                                        'carModel': str(row.get('carModel', '')) if pd.notna(row.get('carModel')) else '',
+                                        'partNumber': str(row.get('partNumber', '')),
+                                        'partName': str(row.get('partName', '')) if pd.notna(row.get('partName')) else '',
+                                        'quantity': int(row.get('quantity', 1)) if pd.notna(row.get('quantity')) else 1,
+                                        'dueDate': format_date(row.get('dueDate')),
+                                        'requirements': str(row.get('requirements', '')) if pd.notna(row.get('requirements')) else '',
+                                        'status': str(row.get('status', '접수 대기')) if pd.notna(row.get('status')) else '접수 대기',
+                                        'drawingStatus': format_date(row.get('drawingStatus', '')),
+                                        'materialRequestDate': str(row.get('materialRequestDate', '')) if pd.notna(row.get('materialRequestDate')) else '',
+                                        'expectedCompletionDate': format_date(row.get('expectedCompletionDate', '')),
+                                        'materialArrivalDate': str(row.get('materialArrivalDate', '')) if pd.notna(row.get('materialArrivalDate')) else '',
+                                        'sampleCompletionDate': format_date(row.get('sampleCompletionDate', '')),
+                                        'shipDate': format_date(row.get('shipDate', '')),
+                                        'paymentStatus': str(row.get('paymentStatus', '')) if pd.notna(row.get('paymentStatus')) else '',
+                                        'remarks': str(row.get('remarks', '')) if pd.notna(row.get('remarks')) else '',
+                                    }
+                                    
+                                    st.session_state.requests.append(new_request)
+                                    added_count += 1
+                            except Exception as e:
+                                st.warning(f"행 {idx + 1} 처리 중 오류: {str(e)}")
+                                continue
+                        
+                        if added_count > 0:
+                            st.success(f"✅ {added_count}건의 샘플 요청이 등록되었습니다!")
+                            st.rerun()
+                        else:
+                            st.error("등록된 데이터가 없습니다. 필수 필드(회사명, 품번)를 확인해주세요.")
+                
+                except Exception as e:
+                    st.error(f"엑셀 파일 읽기 오류: {str(e)}")
+                    st.info("💡 엑셀 파일 형식을 확인해주세요. 다운로드한 엑셀 파일 형식을 참고하세요.")
     
 
 # 메인 실행
